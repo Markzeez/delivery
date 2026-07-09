@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  SENDER
+  RECEIVER
+  ADMIN
+  RIDER
+}
+
+enum PackageStatus {
+  PENDING
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  fullName  String
+  email     String   @unique
+  password  String
+  role      UserRole
+  createdAt DateTime @default(now())
+
+  sentPackages     Package[] @relation("SenderPackages")
+  receivedPackages Package[] @relation("ReceiverPackages")
+}
+
+model Package {
+  id             String        @id @default(cuid())
+  trackingNumber String        @unique
+  itemName       String
+  description    String?
+  weight         Float
+  deliveryFee    Float
+  status         PackageStatus @default(PENDING)
+
+  // Sender details
+  senderName    String
+  senderPhone   String
+  senderAddress String
+  senderLga     String
+  senderState   String
+
+  // Receiver details
+  receiverName    String
+  receiverPhone   String
+  receiverAddress String
+  receiverLga     String
+  receiverState   String
+
+  // Current location
+  currentLga   String?
+  currentState String?
+
+  senderId   String
+  receiverId String
+
+  sender   User @relation("SenderPackages", fields: [senderId], references: [id])
+  receiver User @relation("ReceiverPackages", fields: [receiverId], references: [id])
+
+  updates TrackingUpdate[] @relation("PackageUpdates")
+
+  createdAt DateTime @default(now())
+}
+
+model TrackingUpdate {
+  id     String  @id @default(cuid())
+  status String
+  note   String?
+  state  String?
+  lga    String?
+
+  packageId String
+  package   Package @relation("PackageUpdates", fields: [packageId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
