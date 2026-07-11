@@ -1,10 +1,11 @@
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import Package from "@/lib/models/Package";
 import { getStateCoords } from "@/lib/nigeria-coords";
 import dynamic from "next/dynamic";
-import type { MapPoint } from "@/app/components/map/PackageMap";
+import type { MapPoint } from "@/app/map/PackageMap";
 
 // Loaded client-side only — Leaflet needs the browser DOM
-const PackageMap = dynamic(() => import("@/app/components/map/PackageMap"), {
+const PackageMap = dynamic(() => import("@/app/map/PackageMap"), {
   ssr: false,
   loading: () => (
     <div className="flex h-[420px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50">
@@ -58,12 +59,8 @@ const formatDate = (value: Date | null | undefined) => {
 };
 
 export default async function TrackDelivery({ trackingCode }: TrackDeliveryProps) {
-  const pkg = await prisma.package.findUnique({
-    where: { trackingNumber: trackingCode },
-    include: {
-      updates: { orderBy: { createdAt: "asc" } },
-    },
-  });
+  await connectDB();
+  const pkg = await Package.findOne({ trackingNumber: trackingCode }).lean();
 
   if (!pkg) {
     return (
@@ -94,7 +91,10 @@ export default async function TrackDelivery({ trackingCode }: TrackDeliveryProps
   });
 
   // 2. Tracking update waypoints (chronological)
-  pkg.updates.forEach((u: { id: string; status: string; note: string | null; state: string | null; lga: string | null; createdAt: Date }) => {
+  const updates = [...(pkg.updates ?? [])].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+  updates.forEach((u) => {
     if (!u.state) return;
     const [lat, lng] = getStateCoords(u.state);
     mapPoints.push({
@@ -265,18 +265,11 @@ export default async function TrackDelivery({ trackingCode }: TrackDeliveryProps
       <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
         <h3 className="text-lg font-semibold text-slate-900">Delivery timeline</h3>
         <div className="relative mt-5 space-y-0">
-          {pkg.updates.length > 0 ? (
+          {updates.length > 0 ? (
             <ol className="relative border-l-2 border-slate-200 ml-3">
-              {[...pkg.updates].reverse().map(
-                (update: {
-                  id: string;
-                  status: string;
-                  note: string | null;
-                  state: string | null;
-                  lga: string | null;
-                  createdAt: Date;
-                }) => (
-                  <li key={update.id} className="mb-6 ml-6">
+              {[...updates].reverse().map(
+                (update) => (
+                  <li key={String(update._id ?? update.status + update.createdAt)} className="mb-6 ml-6">
                     {/* dot */}
                     <span className="absolute -left-[9px] flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 ring-4 ring-white" />
                     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

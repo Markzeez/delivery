@@ -1,6 +1,7 @@
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import Package from "@/lib/models/Package";
 import { buildMapPoints } from "./map-points";
-import type { PackageStatus } from "./helpers";
+import type { PackageData, PackageStatus, TrackingUpdate } from "./helpers";
 
 import PackageHeader from "./components/PackageHeader";
 import LiveMap from "./components/LiveMap";
@@ -15,12 +16,11 @@ type TrackDeliveryProps = {
 };
 
 export default async function TrackDelivery({ trackingCode }: TrackDeliveryProps) {
-  const pkg = await prisma.package.findUnique({
-    where: { trackingNumber: trackingCode },
-    include: { updates: { orderBy: { createdAt: "asc" } } },
-  });
+  await connectDB();
 
-  if (!pkg) {
+  const raw = await Package.findOne({ trackingNumber: trackingCode }).lean();
+
+  if (!raw) {
     return (
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <h2 className="text-2xl font-semibold text-slate-900">No package found</h2>
@@ -33,6 +33,40 @@ export default async function TrackDelivery({ trackingCode }: TrackDeliveryProps
     );
   }
 
+  // Normalise Mongoose subdocument _id → id for components
+  const updates: TrackingUpdate[] = (raw.updates ?? [])
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .map((u) => ({
+      id: String(u._id ?? `${u.status}-${u.createdAt}`),
+      status: u.status,
+      note: u.note ?? null,
+      state: u.state ?? null,
+      lga: u.lga ?? null,
+      createdAt: new Date(u.createdAt),
+    }));
+
+  const pkg: PackageData = {
+    trackingNumber: raw.trackingNumber,
+    status: raw.status,
+    description: raw.description ?? null,
+    weight: raw.weight,
+    deliveryFee: raw.deliveryFee,
+    senderName: raw.senderName,
+    senderPhone: raw.senderPhone,
+    senderAddress: raw.senderAddress,
+    senderLga: raw.senderLga,
+    senderState: raw.senderState,
+    receiverName: raw.receiverName,
+    receiverPhone: raw.receiverPhone,
+    receiverAddress: raw.receiverAddress,
+    receiverLga: raw.receiverLga,
+    receiverState: raw.receiverState,
+    currentLga: raw.currentLga ?? null,
+    currentState: raw.currentState ?? null,
+    createdAt: new Date(raw.createdAt),
+    updates,
+  };
+
   const status = pkg.status as PackageStatus;
   const mapPoints = buildMapPoints(pkg);
 
@@ -44,8 +78,8 @@ export default async function TrackDelivery({ trackingCode }: TrackDeliveryProps
       {/* 2. Live map */}
       <LiveMap
         points={mapPoints}
-        currentLga={pkg.currentLga ?? null}
-        currentState={pkg.currentState ?? null}
+        currentLga={pkg.currentLga}
+        currentState={pkg.currentState}
       />
 
       {/* 3. Sender / Receiver side-by-side */}
@@ -69,14 +103,14 @@ export default async function TrackDelivery({ trackingCode }: TrackDeliveryProps
       {/* 4. Status / location / created */}
       <PackageStats
         status={status}
-        currentLga={pkg.currentLga ?? null}
-        currentState={pkg.currentState ?? null}
+        currentLga={pkg.currentLga}
+        currentState={pkg.currentState}
         createdAt={pkg.createdAt}
       />
 
       {/* 5. Package details */}
       <PackageDetails
-        description={pkg.description ?? null}
+        description={pkg.description}
         weight={pkg.weight}
         deliveryFee={pkg.deliveryFee}
       />

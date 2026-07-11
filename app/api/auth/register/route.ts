@@ -15,12 +15,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
-    if (existingUser) {
-      return NextResponse.json(
-        { error: "Email already registered" },
-        { status: 409 }
-      );
+    const existing = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existing) {
+      return NextResponse.json({ error: "Email already registered" }, { status: 409 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);

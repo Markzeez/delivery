@@ -7,6 +7,8 @@ export type MapPoint = {
   lng: number;
   label: string;
   type: "origin" | "waypoint" | "current" | "destination";
+  note?: string;
+  time?: string;
 };
 
 type PackageMapProps = {

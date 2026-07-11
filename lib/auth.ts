@@ -40,7 +40,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             credentials.password as string,
             user.password
           );
-
           if (!passwordMatch) return null;
 
           return {

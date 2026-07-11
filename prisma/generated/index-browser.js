@@ -190,7 +190,8 @@ exports.PackageStatus = exports.$Enums.PackageStatus = {
   PICKED_UP: 'PICKED_UP',
   IN_TRANSIT: 'IN_TRANSIT',
   DELIVERED: 'DELIVERED',
-  CANCELLED: 'CANCELLED'
+  CANCELLED: 'CANCELLED',
+  LOST: 'LOST'
 };
 
 exports.Prisma.ModelName = {

@@ -48,7 +48,8 @@ export const PackageStatus: {
   PICKED_UP: 'PICKED_UP',
   IN_TRANSIT: 'IN_TRANSIT',
   DELIVERED: 'DELIVERED',
-  CANCELLED: 'CANCELLED'
+  CANCELLED: 'CANCELLED',
+  LOST: 'LOST'
 };
 
 export type PackageStatus = (typeof PackageStatus)[keyof typeof PackageStatus]
@@ -84,6 +85,7 @@ export class PrismaClient<
   const U = 'log' extends keyof ClientOptions ? ClientOptions['log'] extends Array<Prisma.LogLevel | Prisma.LogDefinition> ? Prisma.GetEvents<ClientOptions['log']> : never : never,
   ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs
 > {
+  contact: any;
   [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }
 
     /**

@@ -4,12 +4,7 @@ import Package from "@/lib/models/Package";
 
 type PackageStatus = "PENDING" | "PICKED_UP" | "IN_TRANSIT" | "DELIVERED" | "CANCELLED";
 
-const STATUS_ORDER: PackageStatus[] = [
-  "PENDING",
-  "PICKED_UP",
-  "IN_TRANSIT",
-  "DELIVERED",
-];
+const STATUS_ORDER: PackageStatus[] = ["PENDING", "PICKED_UP", "IN_TRANSIT", "DELIVERED"];
 
 const STATUS_NOTES: Record<PackageStatus, string> = {
   PENDING: "Package is awaiting pickup.",
@@ -21,11 +16,11 @@ const STATUS_NOTES: Record<PackageStatus, string> = {
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
 
     const { status, note, state, lga } = body as {
@@ -40,12 +35,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Package not found" }, { status: 404 });
     }
 
-    // Determine new status
     let newStatus: PackageStatus;
     if (status) {
       newStatus = status;
     } else {
-      // Advance to next status automatically
       const currentIndex = STATUS_ORDER.indexOf(pkg.status as PackageStatus);
       if (currentIndex === -1 || currentIndex === STATUS_ORDER.length - 1) {
         return NextResponse.json(

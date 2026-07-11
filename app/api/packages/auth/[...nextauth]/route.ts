@@ -1,3 +1,3 @@
-import { handlers } from "@/app/Auth/auth";
+import { GET, POST } from "@/app/api/auth/[...nextauth]/route";
 
-export const { GET, POST } = handlers;
+export { GET, POST };

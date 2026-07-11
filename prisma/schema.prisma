@@ -20,6 +20,7 @@ enum PackageStatus {
   IN_TRANSIT
   DELIVERED
   CANCELLED
+  LOST
 }
 
 model User {
@@ -61,11 +62,11 @@ model Package {
   currentLga      String?
   currentState    String?
 
-  senderId        String
-  receiverId      String
+  senderId        String?
+  receiverId      String?
 
-  sender          User @relation("SenderPackages", fields: [senderId], references: [id])
-  receiver        User @relation("ReceiverPackages", fields: [receiverId], references: [id])
+  sender          User? @relation("SenderPackages", fields: [senderId], references: [id])
+  receiver        User? @relation("ReceiverPackages", fields: [receiverId], references: [id])
 
   updates         TrackingUpdate[] @relation("PackageUpdates")
 
@@ -82,5 +83,14 @@ model TrackingUpdate {
   packageId String
   package   Package  @relation("PackageUpdates", fields: [packageId], references: [id], onDelete: Cascade)
 
+  createdAt DateTime @default(now())
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  read      Boolean  @default(false)
   createdAt DateTime @default(now())
 }
