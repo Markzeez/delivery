@@ -1,81 +1,43 @@
-import NextAuth, { type DefaultSession } from "next-auth";
-import Credentials from "next-auth/providers/credentials";
+// lib/auth.ts
+import type { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { connectDB } from "@/lib/mongodb";
-import User from "@/lib/models/User";
+import { prisma } from "@/lib/prisma";
 
-declare module "next-auth" {
-  interface User {
-    role?: string;
-  }
-  interface Session {
-    user: {
-      id: string;
-      role?: string;
-    } & DefaultSession["user"];
-  }
-}
-
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
-    Credentials({
+    CredentialsProvider({
+      name: "Credentials",
       credentials: {
         email: {},
         password: {},
       },
-
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
-
-        try {
-          await connectDB();
-
-          const user = await User.findOne({
-            email: (credentials.email as string).toLowerCase().trim(),
-          }).lean();
-
-          if (!user) return null;
-
-          const passwordMatch = await bcrypt.compare(
-            credentials.password as string,
-            user.password
-          );
-          if (!passwordMatch) return null;
-
-          return {
-            id: user._id.toString(),
-            name: user.fullName,
-            email: user.email,
-            role: user.role,
-          };
-        } catch (error) {
-          console.error("[NextAuth authorize]", error);
-          return null;
-        }
+        const user = await prisma.user.findUnique({
+          where: { email: (credentials.email as string).toLowerCase().trim() },
+        });
+        if (!user) return null;
+        const match = await bcrypt.compare(credentials.password, user.password);
+        if (!match) return null;
+        return { id: user.id, name: user.fullName, email: user.email, role: user.role };
       },
     }),
   ],
-
   session: { strategy: "jwt" },
-
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role;
-        token.id = user.id;
-      }
+      if (user) { token.role = (user as any).role; token.id = user.id; }
       return token;
     },
-
     async session({ session, token }) {
       if (session.user) {
-        session.user.role = token.role as string;
-        session.user.id = token.id as string;
+        (session.user as any).role = token.role;
+        (session.user as any).id = token.id;
       }
       return session;
     },
   },
-
   pages: { signIn: "/login" },
-  secret: process.env.AUTH_SECRET,
-});
+  secret: process.env.NEXTAUTH_SECRET,
+};

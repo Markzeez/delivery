@@ -1,6 +1,10 @@
-import { auth } from "@/lib/auth";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+
+
+// import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { connectDB } from "@/lib/mongodb";
+// import { connectDB } from "@/lib/mongodb";
 import Package from "@/lib/models/Package";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -13,6 +17,7 @@ import {
 } from "@/app/components/ui/select";
 import PackagesTable from "./packages-table";
 
+const session = await getServerSession(authOptions);
 const packageStatuses = [
   "PENDING",
   "PICKED_UP",
@@ -50,7 +55,7 @@ function formatStatusLabel(status: string) {
 }
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
-  const session = await auth();
+  const session = await getServerSession(authOptions);
 
   if (!session?.user) redirect("/login");
   if ((session.user as { role?: string }).role !== "ADMIN") redirect("/");
@@ -62,7 +67,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     ? statusParam
     : "";
 
-  await connectDB();
+  // await connectDB();
 
   // Build MongoDB filter
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
