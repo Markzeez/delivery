@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
-import Package from "@/lib/models/Package";
+// import { connectDB } from "@/lib/mongodb";
+// import Package from "@/lib/models/Package";
 import { generateTrackingCode } from "@/lib/generateTrackingCode";
 
 export async function GET() {
   try {
     await connectDB();
-    const packages = await Package.find({}).sort({ createdAt: -1 }).lean();
+    const packages = await prrisma.package.findMany({}).sort({ createdAt: -1 }).lean();
     return NextResponse.json(packages);
   } catch {
     return NextResponse.json({ error: "Failed to fetch packages" }, { status: 500 });
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
     const trackingNumber = generateTrackingCode(senderState || "PKG", Date.now());
 
-    const pkg = await Package.create({
+    const pkg = await prisma.package.create({
       trackingNumber,
       itemName: itemName || description || "Package",
       description: description ?? undefined,
