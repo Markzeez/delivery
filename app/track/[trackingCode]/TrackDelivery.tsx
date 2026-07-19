@@ -1,5 +1,4 @@
-import { connectDB } from "@/lib/mongodb";
-import Package from "@/lib/models/Package";
+import { supabase } from "@/lib/supabase";
 import { buildMapPoints } from "./map-points";
 import type { PackageData, PackageStatus, TrackingUpdate } from "./helpers";
 
@@ -16,11 +15,13 @@ type TrackDeliveryProps = {
 };
 
 export default async function TrackDelivery({ trackingCode }: TrackDeliveryProps) {
-  await connectDB();
+  const { data: raw, error } = await supabase
+    .from("packages")
+    .select("*, tracking_updates(*)")
+    .eq("tracking_number", trackingCode)
+    .single();
 
-  const raw = await Package.findOne({ trackingNumber: trackingCode }).lean();
-
-  if (!raw) {
+  if (error || !raw) {
     return (
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
         <h2 className="text-2xl font-semibold text-slate-900">No package found</h2>
@@ -33,37 +34,38 @@ export default async function TrackDelivery({ trackingCode }: TrackDeliveryProps
     );
   }
 
-  // Normalise Mongoose subdocument _id → id for components
-  const updates: TrackingUpdate[] = (raw.updates ?? [])
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-    .map((u) => ({
-      id: String(u._id ?? `${u.status}-${u.createdAt}`),
+  const updates: TrackingUpdate[] = (raw.tracking_updates ?? [])
+    .sort((a: { created_at: string }, b: { created_at: string }) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
+    .map((u: { id: string; status: string; note: string | null; state: string | null; lga: string | null; created_at: string }) => ({
+      id: u.id,
       status: u.status,
       note: u.note ?? null,
       state: u.state ?? null,
       lga: u.lga ?? null,
-      createdAt: new Date(u.createdAt),
+      createdAt: new Date(u.created_at),
     }));
 
   const pkg: PackageData = {
-    trackingNumber: raw.trackingNumber,
+    trackingNumber: raw.tracking_number,
     status: raw.status,
     description: raw.description ?? null,
     weight: raw.weight,
-    deliveryFee: raw.deliveryFee,
-    senderName: raw.senderName,
-    senderPhone: raw.senderPhone,
-    senderAddress: raw.senderAddress,
-    senderLga: raw.senderLga,
-    senderState: raw.senderState,
-    receiverName: raw.receiverName,
-    receiverPhone: raw.receiverPhone,
-    receiverAddress: raw.receiverAddress,
-    receiverLga: raw.receiverLga,
-    receiverState: raw.receiverState,
-    currentLga: raw.currentLga ?? null,
-    currentState: raw.currentState ?? null,
-    createdAt: new Date(raw.createdAt),
+    deliveryFee: raw.delivery_fee,
+    senderName: raw.sender_name,
+    senderPhone: raw.sender_phone,
+    senderAddress: raw.sender_address,
+    senderLga: raw.sender_lga,
+    senderState: raw.sender_state,
+    receiverName: raw.receiver_name,
+    receiverPhone: raw.receiver_phone,
+    receiverAddress: raw.receiver_address,
+    receiverLga: raw.receiver_lga,
+    receiverState: raw.receiver_state,
+    currentLga: raw.current_lga ?? null,
+    currentState: raw.current_state ?? null,
+    createdAt: new Date(raw.created_at),
     updates,
   };
 
@@ -72,50 +74,14 @@ export default async function TrackDelivery({ trackingCode }: TrackDeliveryProps
 
   return (
     <div className="space-y-6">
-      {/* 1. Tracking code + status pill */}
       <PackageHeader trackingNumber={pkg.trackingNumber} status={status} />
-
-      {/* 2. Live map */}
-      <LiveMap
-        points={mapPoints}
-        currentLga={pkg.currentLga}
-        currentState={pkg.currentState}
-      />
-
-      {/* 3. Sender / Receiver side-by-side */}
+      <LiveMap points={mapPoints} currentLga={pkg.currentLga} currentState={pkg.currentState} />
       <div className="grid gap-6 lg:grid-cols-2">
-        <SenderCard
-          name={pkg.senderName}
-          phone={pkg.senderPhone}
-          address={pkg.senderAddress}
-          lga={pkg.senderLga}
-          state={pkg.senderState}
-        />
-        <ReceiverCard
-          name={pkg.receiverName}
-          phone={pkg.receiverPhone}
-          address={pkg.receiverAddress}
-          lga={pkg.receiverLga}
-          state={pkg.receiverState}
-        />
+        <SenderCard name={pkg.senderName} phone={pkg.senderPhone} address={pkg.senderAddress} lga={pkg.senderLga} state={pkg.senderState} />
+        <ReceiverCard name={pkg.receiverName} phone={pkg.receiverPhone} address={pkg.receiverAddress} lga={pkg.receiverLga} state={pkg.receiverState} />
       </div>
-
-      {/* 4. Status / location / created */}
-      <PackageStats
-        status={status}
-        currentLga={pkg.currentLga}
-        currentState={pkg.currentState}
-        createdAt={pkg.createdAt}
-      />
-
-      {/* 5. Package details */}
-      <PackageDetails
-        description={pkg.description}
-        weight={pkg.weight}
-        deliveryFee={pkg.deliveryFee}
-      />
-
-      {/* 6. Timeline */}
+      <PackageStats status={status} currentLga={pkg.currentLga} currentState={pkg.currentState} createdAt={pkg.createdAt} />
+      <PackageDetails description={pkg.description} weight={pkg.weight} deliveryFee={pkg.deliveryFee} />
       <DeliveryTimeline updates={pkg.updates} />
     </div>
   );

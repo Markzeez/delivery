@@ -1,5 +1,6 @@
 export enum Role {
   ADMIN = "ADMIN",
-  COURIER = "COURIER",
+  RIDER = "RIDER",
   SENDER = "SENDER",
+  RECEIVER = "RECEIVER",
 }

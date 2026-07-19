@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
-import Contact from "@/lib/models/Contact";
+import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
-    await connectDB();
     const { name, email, message } = await req.json();
-
     if (!name || !email || !message) {
       return NextResponse.json(
         { error: "Missing name, email, or message" },
@@ -14,29 +11,49 @@ export async function POST(req: Request) {
       );
     }
 
-    const record = await Contact.create({
-      name: String(name).trim(),
-      email: String(email).trim(),
-      message: String(message).trim(),
-    });
+    const { data: record, error } = await supabase
+      .from("contacts")
+      .insert({
+        name: String(name).trim(),
+        email: String(email).trim(),
+        message: String(message).trim(),
+      })
+      .select("id")
+      .single();
 
-    return NextResponse.json({ id: record._id.toString() }, { status: 201 });
+    if (error || !record) {
+      console.error("[POST /api/contact]", error);
+      return NextResponse.json(
+        { error: "Failed to submit message" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ id: record.id }, { status: 201 });
   } catch (error) {
     console.error("[POST /api/contact]", error);
-    return NextResponse.json({ error: "Failed to submit message" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to submit message" },
+      { status: 500 }
+    );
   }
 }
 
 export async function GET() {
   try {
-    await connectDB();
-    const messages = await Contact.find({})
-      .sort({ createdAt: -1 })
-      .limit(100)
-      .lean();
+    const { data: messages, error } = await supabase
+      .from("contacts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
     return NextResponse.json(messages);
   } catch (error) {
     console.error("[GET /api/contact]", error);
-    return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch messages" },
+      { status: 500 }
+    );
   }
 }

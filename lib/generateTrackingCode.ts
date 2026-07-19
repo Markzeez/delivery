@@ -1,11 +1,7 @@
-export function generateTrackingCode(
-  stateCode: string,
-  sequence: number
-) {
+import { v4 as uuidv4 } from "uuid";
+
+export function generateTrackingCode(stateCode: string) {
   const year = new Date().getFullYear();
-
-  // Pad number with leading zeros
-  const paddedSequence = sequence.toString().padStart(5, "0");
-
-  return `NG-${stateCode.toUpperCase()}-${year}-${paddedSequence}`;
+  const suffix = uuidv4().split("-")[0].toUpperCase(); // 8-char hex
+  return `NG-${stateCode.toUpperCase()}-${year}-${suffix}`;
 }

@@ -1,13 +1,7 @@
 import { Role } from "./role";
 
-export const routePermissions = {
+export const routePermissions: Record<string, Role[]> = {
   "/admin": [Role.ADMIN],
-
-  "/courier": [Role.COURIER],
-
-  "/dashboard": [
-    Role.ADMIN,
-    Role.COURIER,
-    Role.SENDER,
-  ],
+  "/rider": [Role.RIDER],
+  "/dashboard": [Role.ADMIN, Role.RIDER, Role.SENDER],
 };

@@ -1,11 +1,9 @@
 export type PackageStatus =
-  | "REGISTERED"
+  | "PENDING"
   | "PICKED_UP"
   | "IN_TRANSIT"
-  | "ARRIVED_STATE"
-  | "ARRIVED_LGA"
-  | "OUT_FOR_DELIVERY"
   | "DELIVERED"
+  | "CANCELLED"
   | "LOST";
 
 export type TrackingUpdate = {
